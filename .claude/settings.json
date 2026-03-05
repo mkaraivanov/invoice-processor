@@ -1,0 +1,63 @@
+{
+  "enabledPlugins": {
+    "supabase@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "context7@claude-plugins-official": true
+  },
+  "mcpServers": {},
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npx:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(node:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); [ -z \"$FILE\" ] && exit 0; grep -n \"from '@prisma/client'\" \"$FILE\" 2>/dev/null && echo \"ERROR: Use @/app/generated/prisma/client instead of @prisma/client\" || true"
+          },
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); [ -z \"$FILE\" ] && exit 0; grep -n \"cookies()\" \"$FILE\" 2>/dev/null | grep -v \"await\" && echo \"WARNING: cookies() must be awaited in Next.js 15\" || true"
+          },
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); [ -z \"$FILE\" ] && exit 0; echo \"$FILE\" | grep -qE '\\.(ts|tsx)$' && npx tsc --noEmit 2>&1 | head -20 || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); [ -z \"$FILE\" ] && exit 0; echo \"$FILE\" | grep -qE '\\.env(\\..+)?$' && echo \"Blocked: editing env files requires explicit user permission\" && exit 2 || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CMD=$(jq -r '.tool_input.command // empty'); [ -z \"$CMD\" ] && exit 0; FIRST=$(echo \"$CMD\" | awk '{print $1}'); [ \"$FIRST\" != \"git\" ] && exit 0; if echo \"$CMD\" | grep -qE 'git push.*(--force|-f)|git push.*--delete|git push.*:[^/]|git reset --hard|git branch -D'; then if echo \"$CMD\" | grep -qE '(main|master)'; then echo \"BLOCKED: Force-push to main/master is not allowed.\"; else echo \"BLOCKED: Dangerous git operation requires explicit user approval: $CMD\"; fi; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

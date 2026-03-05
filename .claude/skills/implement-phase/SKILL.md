@@ -1,10 +1,10 @@
 ---
 name: implement-phase
-description: Implement a numbered phase from docs/IMPLEMENTATION_PLAN.md step by step
+description: Implement a numbered phase from docs/phases/phase-$ARGUMENTS.md step by step
 disable-model-invocation: true
 argument-hint: "[phase-number]"
 ---
-Read @docs/IMPLEMENTATION_PLAN.md. You are about to implement Phase $ARGUMENTS.
+Read @docs/phases/readme.md. You are about to implement Phase $ARGUMENTS.
 
 ## Before you start
 
