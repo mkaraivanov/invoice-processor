@@ -11,6 +11,8 @@ The project is greenfield — planning docs exist (`docs/IMPLEMENTATION_PLAN.md`
 
 The primary context file for Claude Code. **Keep it short** — bloated CLAUDE.md files cause Claude to ignore instructions. Only include things that would cause mistakes if omitted; defer detail to skills and imported docs.
 
+> **Add at the very top**: `> Read this FIRST before any implementation task.` — sets Claude's mode immediately (pattern from hs-mobile-app).
+
 Sections:
 
 - **Stack**: Next.js 15 App Router, Supabase (Auth/Storage/Postgres), Prisma v6+, shadcn/ui, Vercel, npm
@@ -22,17 +24,53 @@ Sections:
 - **Critical Supabase SSR** (inline): `@supabase/ssr` only; `setAll` sets cookies on both request AND response.
 - **Package manager**: npm only.
 - **shadcn/ui**: `components.json` must include `"hooks": "@/hooks"`.
-- **Imported docs** (use `@` syntax so Claude reads the actual files):
+- **Commands** (inline — Claude should never have to guess):
+  ```bash
+  npm run dev          # Next.js dev server
+  npm run build        # production build
+  npm run lint         # ESLint
+  npm run type-check   # tsc --noEmit
+  npm test             # Vitest unit/integration
+  npx prisma migrate dev   # create + apply migration
+  npx prisma generate      # regenerate client → src/app/generated/prisma
   ```
-  See @docs/IMPLEMENTATION_PLAN.md for phases and architecture.
-  See @docs/TESTING_STRATEGY.md for test setup and conventions.
-  ```
-- **Context7 MCP instruction** (to include): "Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask."
+- **File naming** (inline):
+  - Files: `kebab-case.ts` (e.g., `invoice.service.ts`, `invoice.repository.ts`)
+  - Components: `PascalCase.tsx` (e.g., `InvoiceList.tsx`)
+  - Tests: `*.spec.ts(x)` in `tests/` (matching `TESTING_STRATEGY.md`)
+  - Suffixes: `*.types.ts` | `*.schema.ts` | `*.repository.ts` | `*.service.ts`
+- **Convention docs** — read on-demand (NOT auto-loaded — use Read tool when needed):
+  - `docs/IMPLEMENTATION_PLAN.md` — phases, architecture, step-by-step tasks
+  - `docs/TESTING_STRATEGY.md` — test tiers, fixture patterns, Playwright auth setup
+- **Path-scoped rules**: `.claude/rules/` auto-injects context when editing files in `src/repositories/`, `src/services/`, `src/app/api/`, and `tests/`.
+- **MCP integrations**:
+  - **Context7** — library/API docs lookup (Next.js 15, Prisma, Supabase, shadcn/ui)
+  - **Supabase MCP** — direct DB queries, schema inspection, project status
+  - **Playwright MCP** — run and inspect E2E tests in a real browser
 - **Git conventions**: Commit format `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci).
 - **Context management**:
   - Use `/clear` between unrelated tasks
   - Use `/compact` after completing a full implementation phase
   - Use subagents for investigation to preserve main context
+
+- **Pre-Implementation Checklist**:
+  1. If touching repositories → check `.claude/rules/repositories.md` (Prisma import path)
+  2. If touching API routes → check `.claude/rules/api-routes.md`
+  3. If writing tests → read `docs/TESTING_STRATEGY.md` for correct tier and fixture pattern
+
+  > **During initial POC build only**: before starting any phase, read the relevant section of `docs/IMPLEMENTATION_PLAN.md`. This is handled automatically by the `/implement-phase` skill and does not apply to ongoing feature work.
+
+- **Post-Implementation Checklist**:
+  ```
+  □ npm run lint && npm run type-check pass
+  □ Prisma imports use @/app/generated/prisma/client (never @prisma/client)
+  □ All cookies() calls are awaited
+  □ Zod validation on all API route inputs
+  □ Auth check in service layer before any data access
+  □ Invoice ownership verified before read/write operations
+  □ Unit/integration tests written for new service/repository methods
+  □ Run /verify before committing
+  ```
 
 Testing tier details (Vitest projects, pool config, Playwright auth) belong in `docs/TESTING_STRATEGY.md` and the `write-tests` skill — not inline in CLAUDE.md.
 
@@ -158,6 +196,31 @@ applyTo: "src/repositories/**"
 - Return types: use generated Prisma types (e.g. `Prisma.InvoiceGetPayload<...>`)
 - No business logic — data access only
 ```
+
+---
+
+### 2b. `.claude/local.md` — Per-Developer Local Config
+
+Pattern from hs-mobile-app: a gitignored local markdown file Claude can read for per-developer values (test credentials, local DB URLs, project IDs) without those values ever being committed.
+
+**`.claude/local.md`** (gitignored) — created by each developer locally:
+```markdown
+# Local Development Config (gitignored — copy from local.md.template)
+SUPABASE_PROJECT_ID=your-project-id
+LOCAL_TEST_USER_EMAIL=test@example.com
+LOCAL_TEST_USER_PASSWORD=changeme
+```
+
+**`.claude/local.md.template`** (committed) — documents required variables without real values, so new developers know what to create:
+```markdown
+# Local Development Config Template
+# Copy to .claude/local.md and fill in your values (local.md is gitignored)
+SUPABASE_PROJECT_ID=
+LOCAL_TEST_USER_EMAIL=
+LOCAL_TEST_USER_PASSWORD=
+```
+
+Claude references this file when running local commands that need environment-specific values, instead of hardcoding secrets in prompts or session context.
 
 ---
 
@@ -382,6 +445,7 @@ Reusable slash-prompts in Copilot Chat:
 
 - `playwright/.auth/user.json` — auth state file written by `auth.setup.ts` (currently missing — mentioned in TESTING_STRATEGY.md)
 - `CLAUDE.local.md` — local Claude overrides not meant for team sharing
+- `.claude/local.md` — per-developer local config (see section 2b); template is committed, values are not
 - `tasks/` — TaskCreate/TaskList scratch files generated during Claude Code sessions
 - `.claude/worktrees/` — temporary git worktrees created by Claude agent isolation
 
@@ -405,6 +469,7 @@ Reusable slash-prompts in Copilot Chat:
 | `.claude/rules/api-routes.md` | Create |
 | `.claude/rules/testing.md` | Create |
 | `.claude/agents/security-reviewer.md` | Create |
+| `.claude/local.md.template` | Create |
 | `.claude/settings.json` | Modify — add hooks + permissions allowlist (incl. `.env` block + type-check on save) |
 | `.github/copilot-instructions.md` | Create |
 | `.github/instructions/repositories.instructions.md` | Create |
@@ -416,7 +481,7 @@ Reusable slash-prompts in Copilot Chat:
 | `.github/prompts/write-tests.prompt.md` | Create |
 | `.github/prompts/write-e2e.prompt.md` | Create |
 | `.github/prompts/implement-phase.prompt.md` | Create |
-| `.gitignore` | Modify — add playwright auth, CLAUDE.local.md, tasks/, .claude/worktrees/ |
+| `.gitignore` | Modify — add playwright auth, CLAUDE.local.md, .claude/local.md, tasks/, .claude/worktrees/ |
 
 ---
 
@@ -428,3 +493,5 @@ Reusable slash-prompts in Copilot Chat:
 5. Check `.github/copilot-instructions.md` is picked up via `@workspace` in Copilot Chat
 6. Confirm `npm run build` runs without a confirmation prompt (permissions allowlist working)
 7. Run `/verify` — should execute `npx tsc --noEmit`, `npm run lint`, and `npm test` in sequence
+8. Open CLAUDE.md after creation — confirm "Read this FIRST", Commands, checklists, and MCP sections are all present and visible
+9. Confirm `.claude/local.md` is gitignored but `.claude/local.md.template` is tracked (`git status` should show template as committed, local.md as ignored)
