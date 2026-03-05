@@ -281,6 +281,11 @@ TEST_USER_PASSWORD="your-e2e-test-password"
 }
 ```
 
+
+- Add to `package.json` scripts: `"pre-commit": "npm run type-check && npm run lint"`
+- Install via husky
+
+
 ---
 
 ## Phase 2: Unit & Integration Tests (Vitest)
