@@ -117,6 +117,26 @@ export async function updateSession(request: NextRequest) {
 
 ---
 
+## 6.3b `src/lib/supabase/admin.ts`
+
+```typescript
+import { createClient } from '@supabase/supabase-js'
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set.")
+}
+
+export const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+)
+```
+
+**Server-only** admin client using the service role key. Used for operations without a user session (e.g., cron processing reading files from Storage). Never import in Client Components or expose to the browser.
+
+---
+
 ## 6.4 `src/types/index.ts`
 
 ```typescript
@@ -310,12 +330,11 @@ export const invoiceService = {
   },
 
   async processInvoice(invoiceId: string) {
-    const invoice = await invoiceRepository.findById(invoiceId)
-    if (!invoice) throw new Error('Invoice not found')
+    // Atomically claim the invoice to prevent duplicate processing
+    const claimed = await invoiceRepository.claimForProcessing(invoiceId)
+    if (!claimed) return null // Already claimed by another worker
 
     try {
-      await invoiceRepository.updateStatus(invoiceId, 'PROCESSING')
-
       // Simulate AI processing (replace with real AI call later)
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
@@ -340,13 +359,17 @@ export const invoiceService = {
   },
 
   async processPendingInvoices() {
-    const pendingInvoices = await invoiceRepository.findPending(5)
+    const batchSize = 3 // Conservative for Hobby plan (maxDuration=10s)
+    const pendingInvoices = await invoiceRepository.findPending(batchSize)
 
+    const startTime = Date.now()
+    const maxElapsedMs = 8000 // Leave 2s buffer before Vercel kills the function
     const results = []
     for (const invoice of pendingInvoices) {
+      if (Date.now() - startTime > maxElapsedMs) break // Bail before timeout
       try {
         const result = await this.processInvoice(invoice.id)
-        results.push(result)
+        if (result) results.push(result) // null means already claimed
       } catch (error) {
         console.error(`Failed to process invoice ${invoice.id}:`, error)
       }
@@ -361,6 +384,21 @@ export const invoiceService = {
 
 ---
 
+## 6.8 User sync: ensure user exists in app DB
+
+The register page (Phase 8.5) calls `supabase.auth.signUp` directly from the browser, bypassing `authService.signUp` which performs the `userRepository.upsert`. This means the user record may not exist in the app DB.
+
+**Fix**: Add an "ensure user exists" check in the protected layout (Phase 8.6). On every authenticated request, upsert the user record. This is idempotent and handles both the register-from-client case and any future OAuth providers.
+
+```typescript
+// In (protected)/layout.tsx, after authService.getUser() succeeds:
+await userRepository.upsert(user.id, user.email!, user.user_metadata?.full_name)
+```
+
+Alternatively, change the register page to call a server action/API route that uses `authService.signUp`.
+
+---
+
 ## Checklist
 - [ ] `src/lib/supabase/client.ts` uses `createBrowserClient`
 - [ ] `src/lib/supabase/server.ts` awaits `cookies()`
@@ -369,4 +407,6 @@ export const invoiceService = {
 - [ ] `authService` syncs user to app DB on sign-up
 - [ ] `storageService` generates `{userId}/{uuid}.{ext}` file paths
 - [ ] `invoiceService.getInvoice` verifies ownership (userId check)
+- [ ] `src/lib/supabase/admin.ts` created with service role client
+- [ ] User sync ensured — protected layout upserts user on every authenticated request
 - [ ] Services import repositories, not Prisma directly

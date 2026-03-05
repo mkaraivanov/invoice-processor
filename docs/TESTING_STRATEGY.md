@@ -119,7 +119,7 @@ export default defineConfig({
       exclude: [
         'src/**/*.d.ts',
         'src/**/*.stories.tsx',
-        'src/app/**',
+        'src/app/generated/**',
       ],
       lines: 80,
       functions: 80,

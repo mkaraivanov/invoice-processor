@@ -60,6 +60,16 @@ USING (
   bucket_id = 'invoices'
   AND (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- Allow authenticated users to delete their own files
+CREATE POLICY "Allow authenticated to delete own invoices"
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'invoices'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
 ```
 
 Files are stored as `{userId}/{uuid}.{ext}` — the RLS policy enforces per-user isolation.
@@ -75,3 +85,4 @@ Files are stored as `{userId}/{uuid}.{ext}` — the RLS policy enforces per-user
 - [ ] `invoices` Storage bucket created (private)
 - [ ] Upload RLS policy created
 - [ ] Read RLS policy created
+- [ ] Delete RLS policy created (required for `storageService.deleteFile`)
