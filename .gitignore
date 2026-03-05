@@ -34,6 +34,13 @@ yarn-error.log*
 # claude
 .claude/settings.json
 .claude/settings.local.json
+.claude/local.md
+CLAUDE.local.md
+.claude/worktrees/
+tasks/
+
+# playwright auth state
+playwright/.auth/
 
 # typescript
 *.tsbuildinfo
