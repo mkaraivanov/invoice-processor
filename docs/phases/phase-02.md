@@ -13,8 +13,9 @@ invoice-processor/
 │   ├── app/
 │   │   ├── generated/
 │   │   │   └── prisma/              # Prisma-generated client (output path)
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
+│   │   ├── globals.css              # Tailwind base + CSS variables
+│   │   ├── layout.tsx               # Root layout (Geist fonts, globals.css import)
+│   │   ├── page.tsx                 # Landing page (default Next.js — replaced in Phase 8)
 │   │   ├── (auth)/
 │   │   │   ├── login/page.tsx
 │   │   │   └── register/page.tsx
@@ -32,7 +33,13 @@ invoice-processor/
 │   │               └── route.ts
 │   │
 │   ├── components/
-│   │   └── ui/                      # shadcn components (auto-generated)
+│   │   ├── ui/                      # shadcn components (auto-generated)
+│   │   ├── auth/
+│   │   │   ├── login-form.tsx
+│   │   │   └── register-form.tsx
+│   │   ├── invoice-list.tsx
+│   │   ├── invoice-status-badge.tsx
+│   │   └── invoice-upload-form.tsx
 │   │
 │   ├── lib/
 │   │   ├── supabase/
@@ -61,10 +68,15 @@ invoice-processor/
 │   └── schema.prisma
 │
 ├── middleware.ts                     # Next.js middleware (project root)
-├── .env.local
-├── next.config.js
-├── vercel.json
-└── package.json
+├── components.json                  # shadcn/ui config (New York style)
+├── eslint.config.mjs
+├── next.config.ts
+├── postcss.config.mjs
+├── prisma.config.ts
+├── tsconfig.json
+├── package.json
+├── package-lock.json
+└── .env.local
 ```
 
 ---
@@ -83,4 +95,4 @@ invoice-processor/
 - [ ] All directories created
 - [ ] Route group folders `(auth)` and `(protected)` created
 - [ ] `middleware.ts` exists at project root (not in `src/`)
-- [ ] `vercel.json` exists at project root
+- [ ] Phase 1 files preserved (`layout.tsx`, `page.tsx`, `globals.css`, `utils.ts`)
