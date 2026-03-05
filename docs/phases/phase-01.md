@@ -87,7 +87,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 
 # Prisma (use pooled connection from PgBouncer)
-DATABASE_URL=postgresql://postgres:password@db.your-project.supabase.co:6543/postgres?schema=public
+DATABASE_URL=postgresql://postgres:password@db.your-project.supabase.co:6543/postgres?schema=public&pgbouncer=true&connection_limit=1
 DIRECT_URL=postgresql://postgres:password@db.your-project.supabase.co:5432/postgres?schema=public
 
 # Cron security
@@ -95,7 +95,7 @@ CRON_SECRET=your-random-secret-key-here
 ```
 
 **Notes**:
-- `DATABASE_URL` uses port 6543 (PgBouncer) for connection pooling — safe for serverless
+- `DATABASE_URL` uses port 6543 (PgBouncer) for connection pooling — safe for serverless. Must include `?pgbouncer=true&connection_limit=1` to avoid `prepared statement already exists` errors.
 - `DIRECT_URL` uses port 5432 (direct) for Prisma migrations only — do not use in API routes
 - `NEXT_PUBLIC_*` vars are safe to expose (URL and anon key are public by design)
 - `SUPABASE_SERVICE_ROLE_KEY` never commits to repo

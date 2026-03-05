@@ -16,7 +16,11 @@ Implement `src/lib/prisma.ts` (singleton), `user.repository.ts`, and `invoice.re
 import { PrismaClient } from "@/app/generated/prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set. Check your .env.local file.")
+}
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
@@ -29,6 +33,7 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
 Singleton pattern — prevents multiple PrismaClient instances in development.
 Uses the **driver adapter pattern** required by Prisma v6+.
+Validates `DATABASE_URL` at startup for a clear error message instead of opaque crashes.
 
 ---
 
@@ -122,11 +127,34 @@ export const invoiceRepository = {
   },
 
   async findPending(limit = 5) {
+    const staleThreshold = new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
     return prisma.invoice.findMany({
-      where: { status: 'PENDING' },
+      where: {
+        OR: [
+          { status: 'PENDING' },
+          {
+            status: 'PROCESSING',
+            processingStartedAt: { lt: staleThreshold },
+          },
+        ],
+      },
       orderBy: { uploadedAt: 'asc' },
       take: limit,
     })
+  },
+
+  /**
+   * Atomically claim an invoice for processing using optimistic locking.
+   * Returns the updated invoice if successfully claimed, null if already claimed by another worker.
+   */
+  async claimForProcessing(id: string) {
+    const [claimed] = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `UPDATE invoices SET status = 'PROCESSING', "processingStartedAt" = NOW()
+       WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
+       RETURNING id`,
+      id
+    )
+    return claimed ?? null
   },
 
   async delete(id: string) {
@@ -142,7 +170,8 @@ export const invoiceRepository = {
 - `findById(id)` — get single invoice with user
 - `findByUserId(userId, limit)` — list user's invoices newest-first
 - `updateStatus(id, status, extractedData?, errorMessage?)` — update after processing; sets `processedAt` on COMPLETED/FAILED
-- `findPending(limit)` — get oldest pending invoices for cron
+- `findPending(limit)` — get oldest pending invoices for cron, including stuck PROCESSING invoices (>5 min)
+- `claimForProcessing(id)` — atomically claim an invoice using optimistic locking to prevent duplicate processing
 - `delete(id)` — remove invoice record
 
 ---
@@ -152,5 +181,5 @@ export const invoiceRepository = {
 - [ ] `src/lib/prisma.ts` uses singleton pattern
 - [ ] Repositories import from `@/app/generated/prisma/client` (not `@prisma/client`)
 - [ ] `userRepository` implemented with upsert, findById, findByEmail
-- [ ] `invoiceRepository` implemented with all 6 methods
+- [ ] `invoiceRepository` implemented with all 7 methods (including `claimForProcessing`)
 - [ ] No auth checks or business logic in repositories

@@ -158,7 +158,9 @@ export default function LoginPage() {
 
 ## 8.5 `src/app/(auth)/register/page.tsx`
 
-Client Component. Calls `supabase.auth.signUp` with email, password, and `options.data.full_name`. On success, redirects to `/dashboard`.
+Client Component. Calls a **server action** or **API route** that uses `authService.signUp` (not `supabase.auth.signUp` directly) to ensure the user record is synced to the app DB. On success, redirects to `/dashboard`.
+
+> **Important**: Do NOT call `supabase.auth.signUp` directly from the browser — this bypasses `authService.signUp` which performs the `userRepository.upsert`. Without this, the user record is never created in the app DB, causing failures on first invoice upload.
 
 Key elements:
 - `'use client'`
@@ -250,6 +252,51 @@ Client Component. Uses `useParams()` for the invoice ID. Features:
 
 ---
 
+## 8.10 Error boundaries
+
+Add `error.tsx` in both route groups to catch unhandled errors and prevent the entire React tree from crashing:
+
+- `src/app/(protected)/error.tsx` — shows a "Something went wrong" card with a "Try again" button
+- `src/app/(auth)/error.tsx` — shows a simpler error message with a link to `/login`
+
+Both must be Client Components (`'use client'`). They receive `error` and `reset` props.
+
+---
+
+## 8.11 Loading states
+
+Add `loading.tsx` with skeleton UIs to prevent blank pages during Server Component data fetching:
+
+- `src/app/(protected)/dashboard/loading.tsx` — skeleton stat cards
+- `src/app/(protected)/invoices/loading.tsx` — skeleton table rows
+
+---
+
+## 8.12 Polling vs Supabase Realtime
+
+The invoice list (8.8) and detail (8.9) pages use `setInterval` polling. For the POC, this is acceptable but wastes Vercel function invocations (Hobby: 100K/month limit).
+
+**Recommended improvement**: Replace polling with Supabase Realtime subscriptions:
+
+```typescript
+const supabase = createClient()
+const channel = supabase
+  .channel('invoice-updates')
+  .on('postgres_changes', {
+    event: 'UPDATE',
+    schema: 'public',
+    table: 'invoices',
+    filter: `userId=eq.${userId}`,
+  }, (payload) => {
+    // Update local state with payload.new
+  })
+  .subscribe()
+```
+
+Included in all Supabase plans, uses WebSockets, near-instant updates. If keeping polling for POC simplicity, use exponential backoff (5s → 10s → 20s → 30s max) instead of fixed intervals.
+
+---
+
 ## Checklist
 - [ ] shadcn components installed (button, card, input, label, badge, toast)
 - [ ] Root layout renders without errors
@@ -260,3 +307,7 @@ Client Component. Uses `useParams()` for the invoice ID. Features:
 - [ ] Dashboard: stat cards render, fetches from `/api/invoices`
 - [ ] Invoices list: upload works, table renders, polling active
 - [ ] Invoice detail: status polling, extracted data display
+- [ ] Register page uses server action/API route (not direct `supabase.auth.signUp`)
+- [ ] `error.tsx` exists in `(protected)/` and `(auth)/` route groups
+- [ ] `loading.tsx` exists in `(protected)/dashboard/` and `(protected)/invoices/`
+- [ ] Polling uses exponential backoff (or replaced with Supabase Realtime)

@@ -36,11 +36,12 @@ model Invoice {
   userId        String
   fileName      String
   fileUrl       String
-  status        InvoiceStatus @default(PENDING)
-  extractedData Json?
-  errorMessage  String?
-  uploadedAt    DateTime      @default(now())
-  processedAt   DateTime?
+  status             InvoiceStatus @default(PENDING)
+  extractedData      Json?
+  errorMessage       String?
+  uploadedAt         DateTime      @default(now())
+  processingStartedAt DateTime?
+  processedAt        DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -62,6 +63,7 @@ enum InvoiceStatus {
 **Schema Notes**:
 - `User.id` maps to Supabase `auth.users.id` (UUID)
 - `Invoice.status` defaults to `PENDING`
+- `Invoice.processingStartedAt` tracks when processing began — used to reclaim stuck jobs
 - `Invoice.extractedData` is `Json` for flexible parsed invoice fields
 - Indexes on `userId` and `status` for fast lookups
 - Cascade delete: deleting a user deletes their invoices

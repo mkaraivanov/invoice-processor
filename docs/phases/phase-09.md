@@ -84,9 +84,24 @@ In Vercel project settings → **Environment Variables**, add:
 | `NEXT_PUBLIC_SUPABASE_URL` | from Supabase project settings |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | from Supabase project settings |
 | `SUPABASE_SERVICE_ROLE_KEY` | from Supabase project settings |
-| `DATABASE_URL` | pooled connection (port 6543) |
-| `DIRECT_URL` | direct connection (port 5432) |
+| `DATABASE_URL` | pooled connection (port 6543), must include `?pgbouncer=true&connection_limit=1` |
+| `DIRECT_URL` | direct connection (port 5432) — required at build time for migrations |
 | `CRON_SECRET` | generate: `openssl rand -hex 32` |
+
+### Step 3b: Set build command
+
+In Vercel project settings → **General → Build & Development Settings**, override the build command:
+
+```
+prisma generate && prisma migrate deploy && next build
+```
+
+This ensures:
+1. Prisma client is generated before the Next.js build
+2. Pending migrations are applied to the production DB before the app starts
+3. `DIRECT_URL` (port 5432) must be available at build time for `migrate deploy`
+
+Without this, new migrations won't apply to production, causing runtime crashes.
 
 ### Step 4: Enable Cron
 
@@ -106,6 +121,8 @@ Verify deployment at `https://<project>.vercel.app`.
 - [ ] `npm run type-check` passes
 - [ ] `npm run build` succeeds locally
 - [ ] Deployed to Vercel
-- [ ] All 6 environment variables set in Vercel
+- [ ] Build command set to `prisma generate && prisma migrate deploy && next build`
+- [ ] All 6 environment variables set in Vercel (including `DIRECT_URL` for migrations)
+- [ ] `DATABASE_URL` includes `?pgbouncer=true&connection_limit=1`
 - [ ] Cron job visible in Vercel dashboard
 - [ ] App accessible at production URL
