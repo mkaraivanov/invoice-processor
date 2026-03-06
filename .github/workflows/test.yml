@@ -36,6 +36,9 @@ jobs:
       - run: npm ci
 
       - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invoice_processor_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/invoice_processor_test
         run: npx prisma generate
 
       - name: Setup database
