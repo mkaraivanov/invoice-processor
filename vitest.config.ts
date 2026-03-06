@@ -2,6 +2,14 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import path from 'path'
+import { config } from 'dotenv'
+
+// 1. Load .env.local first (provides DATABASE_URL from Supabase credentials).
+// 2. Then load .env.test with override so test-specific vars win.
+// Both calls must happen before defineConfig so the env.DATABASE_URL expression
+// below reads the correct value at config-parse time.
+config({ path: '.env.local' })
+config({ path: '.env.test', override: true })
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
@@ -34,7 +42,12 @@ export default defineConfig({
           // Fallback DATABASE_URL so prisma.ts doesn't throw at import time when
           // .env.test is absent. Real DB tests (repositories) need .env.test with
           // a real connection string — this placeholder just unblocks API route tests.
-          env: { DATABASE_URL: process.env['DATABASE_URL'] ?? 'postgresql://test:test@localhost:5432/integration_test_placeholder' },
+          // NODE_TLS_REJECT_UNAUTHORIZED=0: pg strict TLS verification fails against
+          // Supabase's certificate chain in local dev; disable only for test workers.
+          env: {
+            DATABASE_URL: process.env['DATABASE_URL'] ?? 'postgresql://test:test@localhost:5432/integration_test_placeholder',
+            NODE_TLS_REJECT_UNAUTHORIZED: '0',
+          },
           // No Supabase mock — integration tests control mocks per-test or use real stubs
           setupFiles: ['./tests/setup.ts'],
         },
