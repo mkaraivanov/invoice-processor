@@ -42,10 +42,10 @@ jobs:
           npx prisma migrate deploy
 
       - name: Run unit & integration tests
-        run: npm run test:vitest -- --coverage
+        run: npm run test:vitest
 
       - name: Run component tests
-        run: npm run test:component -- --coverage
+        run: npm run test:component
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
