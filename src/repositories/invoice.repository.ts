@@ -6,6 +6,7 @@ export const invoiceRepository = {
     userId: string
     fileName: string
     fileUrl: string
+    telegramChatId?: string
   }) {
     return prisma.invoice.create({
       data: {
