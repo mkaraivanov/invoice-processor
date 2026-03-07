@@ -4,7 +4,7 @@ import { uploadInvoiceSchema, type UploadInvoiceInput, type ExtractedInvoiceData
 import type { Prisma } from '@/app/generated/prisma/client'
 
 export const invoiceService = {
-  async uploadInvoice(userId: string, input: UploadInvoiceInput) {
+  async uploadInvoice(userId: string, input: UploadInvoiceInput, telegramChatId?: string) {
     uploadInvoiceSchema.parse(input)
 
     const fileUrl = await storageService.uploadInvoiceFile(userId, input.file)
@@ -13,6 +13,7 @@ export const invoiceService = {
       userId,
       fileName: input.file.name,
       fileUrl,
+      ...(telegramChatId && { telegramChatId }),
     })
 
     return invoice
@@ -71,12 +72,48 @@ export const invoiceService = {
       if (Date.now() - startTime > maxElapsedMs) break // Bail before timeout
       try {
         const result = await this.processInvoice(invoice.id)
-        if (result) results.push(result) // null means already claimed
+        if (result) {
+          results.push(result) // null means already claimed
+
+          // Notify Telegram user if applicable (fire-and-forget)
+          if (invoice.telegramChatId) {
+            this.notifyTelegramResults(invoice.id).catch((err) => {
+              console.error(`Failed to notify Telegram for ${invoice.id}:`, err)
+            })
+          }
+        }
       } catch (error) {
         console.error(`Failed to process invoice ${invoice.id}:`, error)
       }
     }
 
     return { processed: results.length, results }
+  },
+
+  async notifyTelegramResults(invoiceId: string) {
+    const secret = process.env.TELEGRAM_NOTIFY_SECRET
+    if (!secret) {
+      console.warn('TELEGRAM_NOTIFY_SECRET not set, skipping notification')
+      return
+    }
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const response = await fetch(`${baseUrl}/api/telegram/notify-results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ invoiceId }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Notification request failed: ${response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Failed to call notify-results endpoint:', error)
+      throw error
+    }
   },
 }
