@@ -26,7 +26,7 @@ export default defineConfig({
   },
   datasource: {
     url: resolveToIPv4(
-      process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"] ?? ""
+      process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"] ?? "postgresql://localhost:5432/placeholder"
     ),
   },
 });
