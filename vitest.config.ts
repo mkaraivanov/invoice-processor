@@ -13,6 +13,11 @@ config({ path: '.env.test', override: true })
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   test: {
     globals: true,
     pool: 'forks',       // replaces deprecated threads: false
@@ -83,11 +88,6 @@ export default defineConfig({
         'src/services/**': { lines: 85, functions: 85, branches: 80 },
         'src/app/api/**': { lines: 80, functions: 80, branches: 75 },
       },
-    },
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
     },
   },
 })
