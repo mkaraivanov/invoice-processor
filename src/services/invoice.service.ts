@@ -7,7 +7,9 @@ export const invoiceService = {
   async uploadInvoice(userId: string, input: UploadInvoiceInput, telegramChatId?: string) {
     uploadInvoiceSchema.parse(input)
 
-    const fileUrl = await storageService.uploadInvoiceFile(userId, input.file)
+    // Use bot client for Telegram uploads (no request context available)
+    const useBot = Boolean(telegramChatId)
+    const fileUrl = await storageService.uploadInvoiceFile(userId, input.file, useBot)
 
     const invoice = await invoiceRepository.create({
       userId,

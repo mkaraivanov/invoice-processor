@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { createBotClient } from '@/lib/supabase/bot'
 import { v4 as uuidv4 } from 'uuid'
 
 export const storageService = {
-  async uploadInvoiceFile(userId: string, file: File) {
-    const supabase = await createClient()
+  async uploadInvoiceFile(userId: string, file: File, useBot = false) {
+    const supabase = useBot ? createBotClient() : await createClient()
 
     // Generate safe filename with extension allowlist
     const ext = file.name.split('.').pop()?.toLowerCase()

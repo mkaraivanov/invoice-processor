@@ -60,9 +60,11 @@ export class TelegramService {
         // Get largest photo resolution
         fileId = message.photo[message.photo.length - 1].file_id;
         fileName = "invoice.jpg";
+        console.log("Extracted photo fileId:", fileId, "photoCount:", message.photo.length);
       } else if (message.document) {
         fileId = message.document.file_id;
         fileName = message.document.file_name || "invoice.pdf";
+        console.log("Extracted document fileId:", fileId);
       } else {
         await telegramBot.sendMessage(
           telegramChatId,
@@ -72,6 +74,7 @@ export class TelegramService {
       }
 
       // Download file from Telegram
+      console.log("Attempting to download file:", fileId);
       const buffer = await telegramBot.downloadFile(fileId);
 
       // Convert ArrayBuffer to File

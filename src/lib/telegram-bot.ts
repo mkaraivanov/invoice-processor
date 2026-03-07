@@ -11,6 +11,32 @@ const bot = new Telegraf(TOKEN);
 
 // Enable polling (no webhook required)
 if (process.env.NODE_ENV === "development") {
+  // Lazy load to avoid circular dependencies
+  bot.on("message", async (ctx) => {
+    try {
+      const { TelegramService } = await import("@/services/telegram.service");
+      const { prisma } = await import("@/lib/prisma");
+
+      console.log("Received message from polling:", {
+        chatId: ctx.message.chat.id,
+        hasPhoto: !!ctx.message.photo,
+        hasDocument: !!ctx.message.document,
+        documentFileId: ctx.message.document?.file_id,
+      });
+
+      const update = ctx.update;
+      const service = new TelegramService(prisma);
+      console.log("Starting invoice upload handler...");
+      await service.handleInvoiceUpload(update);
+      console.log("Invoice upload completed successfully");
+    } catch (error) {
+      console.error("Polling message handler error:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    }
+  });
+
   bot.launch();
   console.log("Telegram bot polling started");
 }
